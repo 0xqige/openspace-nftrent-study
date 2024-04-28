@@ -1,7 +1,10 @@
+import { useEffect } from "react";
+import { useAccount } from "wagmi";
+
 export default function ConnectButton() {
   return (
-    <div>
-      <button>Connect wallet</button>
-    </div>
+    <>
+      <w3m-button />
+    </>
   );
 }

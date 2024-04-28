@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.29.2",
-    "@web3modal/wagmi": "^4.1.10",
+    "@tanstack/react-query": "^5.32.0",
+    "@web3modal/wagmi": "^4.1.11",
     "classnames": "^2.5.1",
     "lodash": "^4.17.21",
     "next": "14.2.1",
@@ -21,8 +21,8 @@
     "sqlite3": "^5.1.7",
     "swr": "^2.2.5",
     "theme-change": "^2.5.0",
-    "viem": "^2.9.23",
-    "wagmi": "^2.5.20"
+    "viem": "^2.9.28",
+    "wagmi": "^2.6.0"
   },
   "devDependencies": {
     "@heroicons/react": "^2.1.3",
