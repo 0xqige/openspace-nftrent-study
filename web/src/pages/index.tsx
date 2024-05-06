@@ -1,5 +1,7 @@
+import { useWeb3Modal } from "@web3modal/wagmi/react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAccount } from "wagmi";
 const hotNFTs = [
   {
     name: "Slerf NFT",
@@ -19,13 +21,15 @@ const hotNFTs = [
   },
 ];
 export default function Home() {
-  const isConnected = false;
+  const { isConnected } = useAccount();
+  const { open } = useWeb3Modal();
 
   const handleAction = (e: any) => {
     if (isConnected) {
       return;
     }
     e.preventDefault();
+    open();
   };
 
   return (

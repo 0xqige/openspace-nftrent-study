@@ -8,6 +8,14 @@ export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
 
 if (!projectId) throw new Error("Project ID is not defined");
 
+// 来自于已经部署的 thegraph：
+export const RENFT_GRAPHQL_URL = process.env.NEXT_PUBLIC_RENFT_GRAPHQL_URL;
+
+if (!RENFT_GRAPHQL_URL) throw new Error("RENFT_GRAPHQL_URL is not defined");
+
+export const LOADIG_IMG_URL = "/images/loading.svg";
+export const DEFAULT_NFT_IMG_URL = "/images/empty_nft.png";
+
 const metadata = {
   name: "Web3Modal",
   description: "Web3Modal Example",

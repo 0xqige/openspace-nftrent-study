@@ -1,22 +1,17 @@
-import Image from "next/image";
 import _ from "lodash";
-import { useState, FormEvent, useRef, useEffect } from "react";
+import { useState, FormEvent, useRef } from "react";
 import classNames from "classnames";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 import NFTCard from "@/components/nft/NFTCard";
 import Link from "next/link";
-import useSWR from "swr";
-import { useAccount } from "wagmi";
-
-// import { blurImageURL, defaultNFT } from "@/config";
 
 import SelectNFT from "@/components/nft/SelectNFT";
 import { NFTInfo } from "@/types";
 import { useUserNFTs } from "@/lib/fetch";
 
 export default function Rentout() {
-  const { data: userNFTData, isLoading: loadingNFTs } = useUserNFTs();
+  const nftResp = useUserNFTs();
 
   const [selectedNft, setSelectedNft] = useState<NFTInfo | null>(null);
   const [step, setStep] = useState(1);
@@ -37,7 +32,6 @@ export default function Rentout() {
 
   const handleConfirm = (nft: NFTInfo) => {
     console.log("when confirm");
-    // console.log("currSelectedNft:", nft);
     setSelectedNft(nft);
     setStep(2);
   };
@@ -58,7 +52,7 @@ export default function Rentout() {
 
     try {
       const order = {
-        nftCA: selectedNft.address,
+        nftCA: selectedNft.ca,
         tokenId: selectedNft.tokenId,
         dailyRent: dailyRentRef.current?.value,
         maxRentalDuration: maxRentalDurationRef.current?.value,
@@ -114,7 +108,7 @@ export default function Rentout() {
         </li>
       </ul>
 
-      {loadingNFTs && (
+      {nftResp.isLoading && (
         <>
           <div className="flex flex-col gap-4 w-52">
             <div className="skeleton h-32 w-full"></div>
@@ -124,18 +118,17 @@ export default function Rentout() {
           </div>
         </>
       )}
-      {step === 1 && userNFTData && (
+      {step === 1 && nftResp.data && (
         <div className="grid md:grid-cols-4 sm:grid-cols-3 w-full gap-2.5">
-          {userNFTData &&
-            userNFTData.map((nft: any) => (
-              <SelectNFT
-                key={nft.id}
-                nft={nft}
-                selected={nft.id === selectedNft?.id}
-                onClick={handleSelectNft}
-                onConfirm={handleConfirm}
-              ></SelectNFT>
-            ))}
+          {nftResp.data.map((nft: any) => (
+            <SelectNFT
+              key={nft.id}
+              nft={nft}
+              selected={nft.id === selectedNft?.id}
+              onClick={handleSelectNft}
+              onConfirm={handleConfirm}
+            ></SelectNFT>
+          ))}
         </div>
       )}
       {step === 2 && selectedNft && (
