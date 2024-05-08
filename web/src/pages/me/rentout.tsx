@@ -1,29 +1,28 @@
-import Image from "next/image";
 import _ from "lodash";
-import { useState, FormEvent, useRef, useEffect } from "react";
+import { useState, FormEvent, useRef } from "react";
 import classNames from "classnames";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 import NFTCard from "@/components/nft/NFTCard";
 import Link from "next/link";
-import useSWR from "swr";
-import { useAccount } from "wagmi";
-
-// import { blurImageURL, defaultNFT } from "@/config";
 
 import SelectNFT from "@/components/nft/SelectNFT";
-import { NFTInfo } from "@/types";
-import { useUserNFTs } from "@/lib/fetch";
+import { NFTInfo, RentoutOrderMsg } from "@/types";
+import { useUserNFTs, useWriteApproveTx } from "@/lib/fetch";
+import { useAccount } from "wagmi";
+
+import { signTypedData, getAccount } from "@wagmi/core";
+import { config, eip721Types, PROTOCOL_CONFIG, wagmiConfig } from "@/config";
+import { parseUnits } from "viem";
 
 export default function Rentout() {
-  const { data: userNFTData, isLoading: loadingNFTs } = useUserNFTs();
+  const nftResp = useUserNFTs();
+  const { address: userWallet, chainId } = useAccount();
 
   const [selectedNft, setSelectedNft] = useState<NFTInfo | null>(null);
   const [step, setStep] = useState(1);
 
   const [rentalDuration, setRentalDuration] = useState(7);
-  const [dailyRent, setDailyRent] = useState(0.1);
-  const [collateral, setCollateral] = useState(0.1);
   const [listLifetime, setListLifetime] = useState(7);
 
   const handleSelectNft = (nft: NFTInfo) => {
@@ -37,7 +36,6 @@ export default function Rentout() {
 
   const handleConfirm = (nft: NFTInfo) => {
     console.log("when confirm");
-    // console.log("currSelectedNft:", nft);
     setSelectedNft(nft);
     setStep(2);
   };
@@ -48,6 +46,13 @@ export default function Rentout() {
   const dailyRentRef = useRef<HTMLInputElement>(null);
   const collateralRef = useRef<HTMLInputElement>(null);
   const listLifetimeRef = useRef<HTMLInputElement>(null);
+  const { connector } = getAccount(config);
+
+  const approveHelp = useWriteApproveTx(selectedNft);
+
+  const handleApprove = async () => {
+    await approveHelp.sendTx();
+  };
 
   // submit listing order
   const handleSubmitListing = async (event: FormEvent<HTMLFormElement>) => {
@@ -57,37 +62,59 @@ export default function Rentout() {
     setIsLoading(true);
 
     try {
+      if (!approveHelp.isApproved) {
+        return;
+      }
+
+      // 获取 NFT 基本信息
+      const oneday = 24 * 60 * 60;
       const order = {
-        nftCA: selectedNft.address,
-        tokenId: selectedNft.tokenId,
-        dailyRent: dailyRentRef.current?.value,
-        maxRentalDuration: maxRentalDurationRef.current?.value,
-        minCollateral: collateralRef.current?.value,
-        listEndTime: listLifetimeRef.current?.value,
-      };
-      console.log(order);
-      const response = await fetch("/api/listing", {
+        maker: userWallet!,
+        nft_ca: selectedNft.ca,
+        token_id: BigInt(selectedNft.tokenId),
+        daily_rent: parseUnits(dailyRentRef.current!.value, 18),
+        max_rental_duration: BigInt(
+          Number(maxRentalDurationRef.current!.value) * oneday
+        ),
+        min_collateral: parseUnits(collateralRef.current!.value, 18),
+        list_endtime: BigInt(
+          Math.ceil(Date.now() / 1000) +
+            Number(listLifetimeRef.current!.value) * oneday
+        ),
+      } as RentoutOrderMsg;
+
+      console.log("info:", chainId, PROTOCOL_CONFIG[chainId!].domain);
+
+      // TODO 请求钱包签名，获得签名信息
+      const signature = "0x0000...0000";
+
+      console.log("signature", signature);
+
+      const res = await fetch("/api/user/rentout", {
         method: "POST",
-        body: JSON.stringify(order),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order,
+          signature,
+          chainId,
+          nft: selectedNft,
+        }),
       });
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to submit the data. Please try again." + response.statusText
-        );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
       }
 
-      // Handle response if necessary
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      } else if (data.code !== 0) {
-        throw new Error(data.message);
-      }
       setStep(3);
     } catch (error: any) {
-      // Capture the error message to display to the user
-      toast.error(error.message);
+      toast.error(error.message, {
+        position: "bottom-center",
+        className: "min-w-full",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +141,7 @@ export default function Rentout() {
         </li>
       </ul>
 
-      {loadingNFTs && (
+      {nftResp.isLoading && (
         <>
           <div className="flex flex-col gap-4 w-52">
             <div className="skeleton h-32 w-full"></div>
@@ -124,18 +151,17 @@ export default function Rentout() {
           </div>
         </>
       )}
-      {step === 1 && userNFTData && (
+      {step === 1 && nftResp.data && (
         <div className="grid md:grid-cols-4 sm:grid-cols-3 w-full gap-2.5">
-          {userNFTData &&
-            userNFTData.map((nft: any) => (
-              <SelectNFT
-                key={nft.id}
-                nft={nft}
-                selected={nft.id === selectedNft?.id}
-                onClick={handleSelectNft}
-                onConfirm={handleConfirm}
-              ></SelectNFT>
-            ))}
+          {nftResp.data.map((nft: any) => (
+            <SelectNFT
+              key={nft.id}
+              nft={nft}
+              selected={nft.id === selectedNft?.id}
+              onClick={handleSelectNft}
+              onConfirm={handleConfirm}
+            ></SelectNFT>
+          ))}
         </div>
       )}
       {step === 2 && selectedNft && (
@@ -182,7 +208,7 @@ export default function Rentout() {
                       ref={dailyRentRef}
                       className="grow"
                       name="dailyRent"
-                      min={0.0000001}
+                      step={0.0000001}
                       required
                     />
                     <span className="">ETH</span>
@@ -205,7 +231,7 @@ export default function Rentout() {
                       ref={collateralRef}
                       className="grow"
                       placeholder=""
-                      min={0.0000001}
+                      step={0.00000001}
                       required
                     />
                     <span className="">ETH</span>
@@ -242,16 +268,34 @@ export default function Rentout() {
                 </label>
 
                 <label className="form-control  w-full max-w-xs">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={isLoading}
-                  >
-                    {isLoading && (
-                      <span className="loading loading-ring loading-sm"></span>
+                  {approveHelp.isApproved === false &&
+                    !approveHelp.isConfirmed && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleApprove}
+                        disabled={
+                          approveHelp.isPending || approveHelp.isConfirming
+                        }
+                      >
+                        {(approveHelp.isPending ||
+                          approveHelp.isConfirming) && (
+                          <span className="loading loading-ring loading-sm"></span>
+                        )}
+                        Approve first
+                      </button>
                     )}
-                    List Now
-                  </button>
+                  {(approveHelp.isApproved || approveHelp.isConfirmed) && (
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isLoading}
+                    >
+                      {isLoading && (
+                        <span className="loading loading-ring loading-sm"></span>
+                      )}
+                      List Now
+                    </button>
+                  )}
                 </label>
               </form>
             </div>

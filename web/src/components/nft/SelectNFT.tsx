@@ -2,9 +2,9 @@ import { NFTInfo } from "@/types";
 import classNames from "classnames";
 
 import Image from "next/image";
-
-import { blurImageURL, defaultNFT } from "@/config";
-import { useState } from "react";
+import { LOADIG_IMG_URL, DEFAULT_NFT_IMG_URL } from "@/config";
+import { useEffect, useState } from "react";
+import { useFetchNFTMetadata } from "@/lib/fetch";
 
 export default function SelectNFT(props: {
   nft: NFTInfo;
@@ -13,9 +13,16 @@ export default function SelectNFT(props: {
   onConfirm: (nft: NFTInfo) => void;
 }) {
   const { nft, selected, onClick, onConfirm } = props;
-  const [image, setImage] = useState(
-    nft?.image === "" ? defaultNFT : props.nft.image
-  );
+
+  const metaRes = useFetchNFTMetadata(props.nft);
+  const [image, setImage] = useState(DEFAULT_NFT_IMG_URL);
+  useEffect(() => {
+    setImage(
+      metaRes.isLoading
+        ? LOADIG_IMG_URL
+        : metaRes.data?.image || DEFAULT_NFT_IMG_URL
+    );
+  }, [metaRes]);
   return (
     <div
       className={classNames(
@@ -27,21 +34,20 @@ export default function SelectNFT(props: {
       <figure>
         <Image
           placeholder="blur"
-          blurDataURL={blurImageURL}
+          blurDataURL={LOADIG_IMG_URL}
           src={image}
           width={300}
           height={200}
-          // // sizes="width:100%"
           unoptimized={true}
           alt=""
           onError={() => {
-            setImage(defaultNFT);
+            setImage(DEFAULT_NFT_IMG_URL);
           }}
         ></Image>
       </figure>
       <div className="card-body">
         <h2 className="card-title font-thin text-sm truncate w-full max-w-60">
-          {nft.name}#{nft.tokenId}
+          {nft.name}
         </h2>
 
         {selected && (
