@@ -1,4 +1,4 @@
-import { NFTInfo, RentoutOrder, RentoutOrderMsg } from "@/types";
+import { NFTInfo, RentoutOrderMsg } from "@/types";
 import { sql } from "@vercel/postgres";
 import { NextApiRequest, NextApiResponse } from "next";
 
