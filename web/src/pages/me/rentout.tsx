@@ -46,7 +46,6 @@ export default function Rentout() {
   const dailyRentRef = useRef<HTMLInputElement>(null);
   const collateralRef = useRef<HTMLInputElement>(null);
   const listLifetimeRef = useRef<HTMLInputElement>(null);
-  const { connector } = getAccount(config);
 
   const approveHelp = useWriteApproveTx(selectedNft);
 
