@@ -1,7 +1,11 @@
 import { defaultWagmiConfig } from "@web3modal/wagmi/react/config";
 
 import { cookieStorage, createStorage } from "wagmi";
-import { mainnet, sepolia } from "wagmi/chains";
+import { localhost, mainnet, sepolia } from "wagmi/chains";
+
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
 
 // Get projectId at https://cloud.walletconnect.com
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
@@ -35,3 +39,32 @@ export const config = defaultWagmiConfig({
   }),
   // ...wagmiOptions, // Optional - Override createConfig parameters
 });
+
+import { http, createConfig } from "@wagmi/core";
+export const wagmiConfig = createConfig({
+  chains: [mainnet, sepolia],
+  transports: {
+    [mainnet.id]: http("https://ethereum-rpc.publicnode.com"),
+    [sepolia.id]: http("https://ethereum-sepolia-rpc.publicnode.com"),
+  },
+});
+
+import { type TypedData } from "viem";
+
+// 协议配置
+export const PROTOCOL_CONFIG = {
+  [Number(sepolia.id)]: {
+    domain: {
+      // TODO: 配置EIP-712签名域名信息
+    },
+    rentoutMarket: "0x000...000", // TODO: 配置出租市场合约地址
+  },
+} as const;
+
+// EIP-721 签名类型
+export const eip721Types = {
+  // 出租NFT的挂单信息结构
+  RentoutOrder: [
+    // TODO: 定义出租订单结构数据
+  ],
+} as const as TypedData;

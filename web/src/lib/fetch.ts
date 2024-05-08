@@ -1,9 +1,25 @@
 import useSWR from "swr";
-import { useAccount } from "wagmi";
-import { gql, request } from "graphql-request";
-
 import { RENFT_GRAPHQL_URL, DEFAULT_NFT_IMG_URL } from "@/config";
 import { NFTInfo } from "@/types";
+import {
+  useAccount,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
+import { gql, request } from "graphql-request";
+
+import {
+  RENFT_GRAPHQL_URL,
+  DEFAULT_NFT_IMG_URL,
+  config,
+  PROTOCOL_CONFIG,
+} from "@/config";
+import { NFTInfo, RentoutOrderMsg } from "@/types";
+import { sepolia } from "viem/chains";
+import { readContract } from "viem/actions";
+import { ERC721ABI, marketABI } from "./abi";
+import { Address } from "viem";
 
 interface GQL {
   query: string;
@@ -141,4 +157,57 @@ export function reserverURL(url: string) {
     return url.replace("ipfs://", "https://cloudflare-ipfs.com/ipfs/");
   }
   return url;
+}
+
+// 获取市场上的NFT出租列表
+export function useFethcMarketListing() {
+  const { chainId } = useAccount();
+
+  const { data, error, isLoading } = useSWR(
+    `/api/listing?chainId=${chainId || sepolia.id}`,
+    fetcher
+  );
+  console.log("useFethcMarketListing:", data, error, isLoading);
+  return {
+    data: data?.data,
+    error: error ? error.message : data?.error,
+    isLoading,
+  };
+}
+
+export function useWriteApproveTx(nft: NFTInfo | null) {
+  const { data: hash, isPending, error, writeContract } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({ hash });
+  const mkt = useMarketContract();
+
+  // 读合约：获取是否已经授权
+  // https://wagmi.sh/react/api/hooks/useReadContract#type-inference
+  // 或者检查是否有整个集合授权给MKT合约
+  var approveTo = undefined;
+
+  // TODO 查询NFT是否已经授权给市场合约
+
+  return {
+    hash,
+    isPending,
+    error,
+    isConfirming,
+    isConfirmed,
+    isApproved: approveTo === mkt?.address,
+    sendTx: () => {
+      // TODO 写合约：调用NFT合约，将 NFT 授权给市场合约
+      // https://wagmi.sh/react/guides/write-to-contract#_4-hook-up-the-usewritecontract-hook
+    },
+  };
+}
+
+export function useMarketContract() {
+  const { chainId } = useAccount();
+  return chainId
+    ? {
+        address: PROTOCOL_CONFIG[chainId].rentoutMarket,
+        abi: marketABI,
+      }
+    : undefined;
 }

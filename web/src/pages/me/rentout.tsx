@@ -7,18 +7,22 @@ import NFTCard from "@/components/nft/NFTCard";
 import Link from "next/link";
 
 import SelectNFT from "@/components/nft/SelectNFT";
-import { NFTInfo } from "@/types";
-import { useUserNFTs } from "@/lib/fetch";
+import { NFTInfo, RentoutOrderMsg } from "@/types";
+import { useUserNFTs, useWriteApproveTx } from "@/lib/fetch";
+import { useAccount } from "wagmi";
+
+import { signTypedData, getAccount } from "@wagmi/core";
+import { config, eip721Types, PROTOCOL_CONFIG, wagmiConfig } from "@/config";
+import { parseUnits } from "viem";
 
 export default function Rentout() {
   const nftResp = useUserNFTs();
+  const { address: userWallet, chainId } = useAccount();
 
   const [selectedNft, setSelectedNft] = useState<NFTInfo | null>(null);
   const [step, setStep] = useState(1);
 
   const [rentalDuration, setRentalDuration] = useState(7);
-  const [dailyRent, setDailyRent] = useState(0.1);
-  const [collateral, setCollateral] = useState(0.1);
   const [listLifetime, setListLifetime] = useState(7);
 
   const handleSelectNft = (nft: NFTInfo) => {
@@ -43,6 +47,12 @@ export default function Rentout() {
   const collateralRef = useRef<HTMLInputElement>(null);
   const listLifetimeRef = useRef<HTMLInputElement>(null);
 
+  const approveHelp = useWriteApproveTx(selectedNft);
+
+  const handleApprove = async () => {
+    await approveHelp.sendTx();
+  };
+
   // submit listing order
   const handleSubmitListing = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,6 +61,12 @@ export default function Rentout() {
     setIsLoading(true);
 
     try {
+      if (!approveHelp.isApproved) {
+        return;
+      }
+
+      // 获取 NFT 基本信息
+      const oneday = 24 * 60 * 60;
       const order = {
         nftCA: selectedNft.ca,
         tokenId: selectedNft.tokenId,
@@ -61,27 +77,52 @@ export default function Rentout() {
       };
       console.log(order);
       const response = await fetch("/api/listing", {
+        maker: userWallet!,
+        nft_ca: selectedNft.ca,
+        token_id: BigInt(selectedNft.tokenId),
+        daily_rent: parseUnits(dailyRentRef.current!.value, 18),
+        max_rental_duration: BigInt(
+          Number(maxRentalDurationRef.current!.value) * oneday
+        ),
+        min_collateral: parseUnits(collateralRef.current!.value, 18),
+        list_endtime: BigInt(
+          Math.ceil(Date.now() / 1000) +
+            Number(listLifetimeRef.current!.value) * oneday
+        ),
+      } as RentoutOrderMsg;
+
+      console.log("info:", chainId, PROTOCOL_CONFIG[chainId!].domain);
+
+      // TODO 请求钱包签名，获得签名信息
+      const signature = "0x0000...0000";
+
+      console.log("signature", signature);
+
+      const res = await fetch("/api/user/rentout", {
         method: "POST",
-        body: JSON.stringify(order),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order,
+          signature,
+          chainId,
+          nft: selectedNft,
+        }),
       });
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to submit the data. Please try again." + response.statusText
-        );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
       }
 
-      // Handle response if necessary
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      } else if (data.code !== 0) {
-        throw new Error(data.message);
-      }
       setStep(3);
     } catch (error: any) {
-      // Capture the error message to display to the user
-      toast.error(error.message);
+      toast.error(error.message, {
+        position: "bottom-center",
+        className: "min-w-full",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -175,7 +216,7 @@ export default function Rentout() {
                       ref={dailyRentRef}
                       className="grow"
                       name="dailyRent"
-                      min={0.0000001}
+                      step={0.0000001}
                       required
                     />
                     <span className="">ETH</span>
@@ -198,7 +239,7 @@ export default function Rentout() {
                       ref={collateralRef}
                       className="grow"
                       placeholder=""
-                      min={0.0000001}
+                      step={0.00000001}
                       required
                     />
                     <span className="">ETH</span>
@@ -235,16 +276,34 @@ export default function Rentout() {
                 </label>
 
                 <label className="form-control  w-full max-w-xs">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={isLoading}
-                  >
-                    {isLoading && (
-                      <span className="loading loading-ring loading-sm"></span>
+                  {approveHelp.isApproved === false &&
+                    !approveHelp.isConfirmed && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleApprove}
+                        disabled={
+                          approveHelp.isPending || approveHelp.isConfirming
+                        }
+                      >
+                        {(approveHelp.isPending ||
+                          approveHelp.isConfirming) && (
+                          <span className="loading loading-ring loading-sm"></span>
+                        )}
+                        Approve first
+                      </button>
                     )}
-                    List Now
-                  </button>
+                  {(approveHelp.isApproved || approveHelp.isConfirmed) && (
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isLoading}
+                    >
+                      {isLoading && (
+                        <span className="loading loading-ring loading-sm"></span>
+                      )}
+                      List Now
+                    </button>
+                  )}
                 </label>
               </form>
             </div>
