@@ -12,6 +12,7 @@ import {
   DEFAULT_NFT_IMG_URL,
   config,
   PROTOCOL_CONFIG,
+  wagmiConfig,
 } from "@/config";
 import { NFTInfo, RentoutOrderMsg } from "@/types";
 import { sepolia } from "viem/chains";
@@ -50,7 +51,7 @@ export function useUserNFTs(): NFTBalanceResponse {
   const { data: result, error } = useSWR(
     isConnected
       ? {
-          query: gql`
+        query: gql`
             query userNFTs($wallet: Bytes!) {
               tokenInfos(where: { owner: $wallet }) {
                 id
@@ -63,10 +64,10 @@ export function useUserNFTs(): NFTBalanceResponse {
               }
             }
           `,
-          variables: {
-            wallet: address!.toLowerCase(),
-          },
-        }
+        variables: {
+          wallet: address!.toLowerCase(),
+        },
+      }
       : null,
     (req: GQL) =>
       request<queryResponse>(RENFT_GRAPHQL_URL!, req.query, req.variables)
@@ -165,7 +166,7 @@ export function useFethcMarketListing() {
     `/api/listing?chainId=${chainId || sepolia.id}`,
     fetcher
   );
-  console.log("useFethcMarketListing:", data, error, isLoading);
+  // console.log("useFethcMarketListing:", data, error, isLoading);
   return {
     data: data?.data,
     error: error ? error.message : data?.error,
@@ -179,12 +180,16 @@ export function useWriteApproveTx(nft: NFTInfo | null) {
     useWaitForTransactionReceipt({ hash });
   const mkt = useMarketContract();
 
+  // (yinxing)DONE5: 查询NFT是否已经授权给市场合约
   // 读合约：获取是否已经授权
   // https://wagmi.sh/react/api/hooks/useReadContract#type-inference
   // 或者检查是否有整个集合授权给MKT合约
-  var approveTo = undefined;
-
-  // TODO 查询NFT是否已经授权给市场合约
+  const { data: approveTo } = useReadContract({
+    abi: ERC721ABI,
+    address: nft?.ca as Address,
+    functionName: "getApproved",
+    args: [nft?.tokenId],
+  })
 
   return {
     hash,
@@ -192,10 +197,17 @@ export function useWriteApproveTx(nft: NFTInfo | null) {
     error,
     isConfirming,
     isConfirmed,
-    isApproved: approveTo === mkt?.address,
+    isApproved: approveTo === mkt?.address, //检查是否 NFT 已经授权给市场合约，只需检查地址是否相等
     sendTx: () => {
-      // TODO 写合约：调用NFT合约，将 NFT 授权给市场合约
+      // (yinxing)DONE6: 写合约：调用NFT合约，将 NFT 授权给市场合约
       // https://wagmi.sh/react/guides/write-to-contract#_4-hook-up-the-usewritecontract-hook
+      console.log("[useWriteApproveTx] nft:", nft);
+      writeContract({
+        address: nft?.ca as Address, // 需要交互的 NFT 合约地址
+        abi: ERC721ABI, // ABI
+        functionName: 'approve', // 指定交互的方法
+        args: [mkt?.address, nft?.tokenId], // 合约的函数参数
+      })
     },
   };
 }
@@ -204,8 +216,8 @@ export function useMarketContract() {
   const { chainId } = useAccount();
   return chainId
     ? {
-        address: PROTOCOL_CONFIG[chainId].rentoutMarket,
-        abi: marketABI,
-      }
+      address: PROTOCOL_CONFIG[chainId].rentoutMarket,
+      abi: marketABI,
+    }
     : undefined;
 }

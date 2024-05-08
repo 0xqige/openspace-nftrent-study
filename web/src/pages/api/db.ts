@@ -21,7 +21,7 @@ export default async function handler(
     const result = await sql`CREATE TABLE IF NOT EXISTS rentout_orders (
         id SERIAL PRIMARY KEY,
         chain_id INTEGER NOT NULL,
-        taker TEXT,
+        maker TEXT,
         nft_ca TEXT,
         token_url TEXT,
         token_name TEXT,

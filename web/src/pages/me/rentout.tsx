@@ -61,6 +61,7 @@ export default function Rentout() {
     setIsLoading(true);
 
     try {
+      console.log("[handleSubmitListing] begin:");
       if (!approveHelp.isApproved) {
         return;
       }
@@ -80,13 +81,17 @@ export default function Rentout() {
           Math.ceil(Date.now() / 1000) +
             Number(listLifetimeRef.current!.value) * oneday
         ),
-      } as RentoutOrderMsg;
+      };
 
       console.log("info:", chainId, PROTOCOL_CONFIG[chainId!].domain);
 
-      // TODO 请求钱包签名，获得签名信息
-      const signature = "0x0000...0000";
-
+      // (yinxing)DONE3:请求钱包签名，获得签名信息
+      const signature = await signTypedData(wagmiConfig, {
+        domain: PROTOCOL_CONFIG[chainId!].domain,
+        types: eip721Types,
+        primaryType: "RentoutOrder",
+        message: order,
+      });
       console.log("signature", signature);
 
       const res = await fetch("/api/user/rentout", {
@@ -300,7 +305,7 @@ export default function Rentout() {
             </div>
           </div>
           <div className="flex  w-full justify-center gap-12">
-            <p className="max-w-2xl text-base-200 hover:text-base-content">
+            <p className="max-w-2xl text-base-200 ho :text-base-content">
               During the listing period, there is no need to lock your NFT. The
               transfer of NFT only occurs upon lending, allowing you to start
               earning rental income. At the end of the term, if the tenant fails
