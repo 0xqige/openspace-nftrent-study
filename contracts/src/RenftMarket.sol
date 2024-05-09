@@ -24,27 +24,66 @@ contract RenftMarket is EIP712 {
   mapping(bytes32 => BorrowOrder) public orders; // 已租赁订单
   mapping(bytes32 => bool) public canceledOrders; // 已取消的挂单
 
-  constructor() EIP712("RenftMarket", "1") { }
+  constructor() EIP712("RenftMarket", "V1") { }
+
+  bytes32 public constant ORDER_HASH = 0x7aacd3704d4b2c8394cd9d9b45bd3ea360eadb5bc98475d01d4273578b01f9a2;
+  // bytes32 public constant ORDER_HASH = keccak256("RentoutOrder(address maker,address nft_ca,uint256 token_id,uint256 daily_rent,uint256 max_rental_duration, uint256 min_collateral,uint256 list_endtime)");
 
   /**
    * @notice 租赁NFT
    * @dev 验证签名后，将NFT从出租人转移到租户，并存储订单信息
    */
   function borrow(RentoutOrder calldata order, bytes calldata makerSignature) external payable {
-    revert("TODO");
+    require(msg.value >= order.min_collateral, "Insufficient collateral");
+    
+    bytes32 structHash = _cheackOrder(order, makerSignature);
+    // 3. 转移NFT
+    IERC721(order.nft_ca).transferFrom(order.maker, msg.sender, order.token_id);
+
+    // 已租赁订单
+    orders[structHash] = BorrowOrder(order.maker, order.min_collateral, block.timestamp, order);
+
+    // 出租订单事件
+    emit BorrowNFT(msg.sender, order.maker, structHash, msg.value);
   }
 
   /**
    * 1. 取消时一定要将取消的信息在链上标记，防止订单被使用！
    * 2. 防DOS： 取消订单有成本，这样防止随意的挂单，
    */
-  function cancelOrder(RentoutOrder calldata order, bytes calldata makerSignatre) external {
-    revert("TODO");
+  function cancelOrder(RentoutOrder calldata order, bytes calldata signatre) external {
+    bytes32 structHash = _cheackOrder(order, signatre);
+    // 1. 标记取消订单
+    canceledOrders[structHash] = true;
+    emit OrderCanceled(order.maker, structHash);
+  }
+
+  function _cheackOrder(RentoutOrder calldata order, bytes calldata signatre) internal returns (bytes32 structHash) {
+    // 1. 验证订单是否有效
+    require(order.list_endtime > block.timestamp, "Order expired");
+  
+    // 2. 验证order签名
+    structHash = orderHash(order);
+
+    bytes32 digest = _hashTypedDataV4(structHash);
+    address signer = ECDSA.recover(digest, signatre);
+    require(signer == msg.sender, "sign fial");
   }
 
   // 计算订单哈希
   function orderHash(RentoutOrder calldata order) public view returns (bytes32) {
-    revert("TODO");
+    return keccak256(
+      abi.encode(
+        ORDER_HASH,
+        order.maker,
+        order.nft_ca,
+        order.token_id,
+        order.daily_rent,
+        order.max_rental_duration,
+        order.min_collateral,
+        order.list_endtime
+      )
+    );
   }
 
   struct RentoutOrder {
@@ -63,5 +102,9 @@ contract RenftMarket is EIP712 {
     uint256 collateral; // 抵押
     uint256 start_time; // 租赁开始时间，方便计算利息
     RentoutOrder rentinfo; // 租赁订单
+  }
+
+  function domainSeparatorV4() public returns (bytes32) {
+    return _domainSeparatorV4();
   }
 }

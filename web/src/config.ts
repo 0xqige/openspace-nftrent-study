@@ -57,14 +57,22 @@ export const PROTOCOL_CONFIG = {
     domain: {
       // TODO: 配置EIP-712签名域名信息
     },
-    rentoutMarket: "0x000...000", // TODO: 配置出租市场合约地址
+    rentoutMarket: "0x35Cb8FbF3d5D9f5d04215381a13E3FDa9A182Eb9", // TODO: 配置出租市场合约地址
   },
 } as const;
+
+
 
 // EIP-721 签名类型
 export const eip721Types = {
   // 出租NFT的挂单信息结构
   RentoutOrder: [
-    // TODO: 定义出租订单结构数据
+    { name: "taker", type: "address" },  // 出租方地址
+    { name: "nft_ca", type: "address" }, // NFT合约地址
+    { name: "token_id", type: "uint256" },  // NFT tokenId
+    { name: "daily_rent", type: "uint256" },  // 每日租金
+    { name: "max_rental_duration", type: "uint256" },  // 最大租赁时长
+    { name: "min_collateral", type: "uint256" },  // 最小抵押
+    { name: "list_endtime", type: "uint256" },// 挂单结束时间
   ],
 } as const as TypedData;
