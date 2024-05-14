@@ -48,6 +48,6 @@ function verifyingOrder(
     primaryType: 'RentoutOrder',
     message: order,
     address: order.maker,
-    signature: signature,
+    signature,
   })
 }

@@ -118,16 +118,3 @@
 //     // 给用户转 RNT
 //   }
 // }
-
-// contract EsRNTToken is ERC20Permit {
-//   constructor() ERC20Permit("EsRNTToken") ERC20("EsRNTToken", "EsRNT") { }
-
-//   function mint(address account, uint256 value) external {
-//     _mint(account, value);
-//   }
-
-//   // burn locked esToken
-//   function burn(address account, uint256 value) external {
-//     _burn(account, value);
-//   }
-// }
