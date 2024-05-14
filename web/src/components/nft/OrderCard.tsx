@@ -12,6 +12,9 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { Address } from "viem";
+import { ERC721ABI, marketABI } from "./../../lib/abi";
+import { sign } from "crypto";
 
 export default function OrderCard(props: { order: RentoutOrderEntry }) {
   const { chainId } = useAccount();
@@ -43,8 +46,26 @@ export default function OrderCard(props: { order: RentoutOrderEntry }) {
 
   const handleOpen = (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    console.log("[handleOpen] order.signature:", order.signature);
 
-    //TODO: 写合约，执行Borrow 交易
+    const orderMsg = {
+      maker: order.maker,
+      nft_ca: order.nft_ca,
+      token_id: order.token_id,
+      daily_rent: order.daily_rent,
+      max_rental_duration: order.max_rental_duration,
+      min_collateral: order.min_collateral,
+      list_endtime: order.list_endtime,
+    };
+
+    //(yinxing)DONE: 写合约，执行Borrow 交易
+    writeContract({
+      address: PROTOCOL_CONFIG[chainId!].rentoutMarket as Address, // 市场合约地址
+      abi: marketABI,
+      functionName: "borrow",
+      // 传入 order 和 signature
+      args: [orderMsg, order.signature],
+    });
   };
 
   return (

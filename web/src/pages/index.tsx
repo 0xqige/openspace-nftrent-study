@@ -42,7 +42,7 @@ export default function Home() {
                 <span>You can</span>
 
                 <Link
-                  href="/me/borrow"
+                  href="/mkt"
                   onClick={handleAction}
                   className="uppercase underline decoration-4 decoration-sky-500 transition transform hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:transform-none"
                 >

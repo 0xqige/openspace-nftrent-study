@@ -40,6 +40,14 @@ function verifyingOrder(
   order: any,
   signature: any
 ): Promise<boolean> {
-  // TODO: 验证订单签名
-  return false as any;
+  // (yinxing)DONE: 验证订单签名
+  return verifyTypedData(wagmiConfig, {
+    chainId: chainId,
+    domain: PROTOCOL_CONFIG[chainId].domain,
+    types: eip721Types,
+    primaryType: 'RentoutOrder',
+    message: order,
+    address: order.maker,
+    signature,
+  })
 }
